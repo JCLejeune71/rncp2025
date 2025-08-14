@@ -1,0 +1,16 @@
+configs:
+  repositories:
+    fastops:
+      name: "fastops"
+      project: "default"
+      type: git
+      url: '${ project_repo }'
+      sshPrivateKey: |
+        ${indent(8, project_repo_secret_key)}
+  harbor:
+      name: "harbor"
+      type: docker
+      url: '${harbor_registry_url}'
+      username: '${harbor_user}'
+      password: '${harbor_pwd}'
+      enableOCI: true

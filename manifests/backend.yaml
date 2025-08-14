@@ -1,0 +1,200 @@
+# Manifest modified by GitLab Runner on Tue Aug 12 10:07:08 AM CEST 2025 by branch 0bd40ad8
+# Reason for change: Remise du logo avec la couleur originale
+---
+# Source: backend/templates/db-sec.yaml
+apiVersion: v1
+data:
+  FIRST_SUPERUSER: YWRtaW5AZXhhbXBsZS5jb20=
+  FIRST_SUPERUSER_PASSWORD: YWRtaW4xMjM0Cg==
+  POSTGRES_DB: YXBw
+  POSTGRES_PASSWORD: YWRtaW4xMjM0Cg==
+  POSTGRES_USER: cG9zdGdyZXM=
+  SECRET_KEY: YWRtaW4xMjM0Cg==
+kind: Secret
+metadata:
+  creationTimestamp: null
+  name: db-backend-sec
+---
+# Source: backend/templates/db-cm.yaml
+apiVersion: v1
+data:
+  DOMAIN: 'frontend.fastops.ip-ddns.com'
+  FRONTEND_HOST: 'http://frontend.fastops.ip-ddns.com:80'
+  ENVIRONMENT: 'local'
+  PROJECT_NAME: "Full Stack FastAPI Project"
+  STACK_NAME: 'full-stack-fastapi-project'
+  BACKEND_CORS_ORIGINS: "http://frontend.fastops.ip-ddns.com,http://frontend.fastops.ip-ddns.com:80,https://frontend.fastops.ip-ddns.com,https://frontend.fastops.ip-ddns.com:443,http://frontend.fastops.ip-ddns.com.tiangolo.com"
+  EMAILS_FROM_EMAIL: 'info@example.com'
+  SMTP_TLS: 'True'
+  SMTP_SSL: 'False'
+  SMTP_PORT: '587'
+  POSTGRES_SERVER: 'db-backend-svc.dev.svc.cluster.local'
+  POSTGRES_PORT: '5432'
+  DOCKER_IMAGE_BACKEND: 'backend'
+  DOCKER_IMAGE_FRONTEND: 'frontend'
+kind: ConfigMap
+metadata:
+  creationTimestamp: null
+  name: db-backend-cm
+---
+# Source: backend/templates/db-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-backend-pvc
+  labels:
+    app: db-backend
+spec:
+  resources:
+    requests:
+      storage: 256M
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: auto-ebs-sc
+---
+# Source: backend/templates/db-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: db-backend-svc
+  name: db-backend-svc
+spec:
+  ports:
+  - name: db-backend-svc
+    port: 5432
+    protocol: TCP
+    targetPort: 5432
+  selector:
+    app: db-backend
+  type: ClusterIP
+status:
+  loadBalancer: {}
+---
+# Source: backend/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  labels:
+    app: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      protocol: TCP
+      name: http
+      targetPort: 5001
+  selector:
+    app: backend
+---
+# Source: backend/templates/db-deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: db-backend
+  name: db-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db-backend
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: db-backend
+    spec:
+      containers:
+      - image: postgres:12.1-alpine
+        name: postgres
+        env:
+          - name: PGDATA
+            value: /var/lib/postgresql/data/db
+        ports:
+          - containerPort: 5432
+        envFrom:
+          - configMapRef:
+              name: db-backend-cm
+          - secretRef:
+              name: db-backend-sec
+        volumeMounts:
+          - mountPath: /var/lib/postgresql/data
+            name: db-backend-vol
+        resources: {}
+      volumes:
+        - name: db-backend-vol
+          persistentVolumeClaim:
+            claimName: db-backend-pvc
+status: {}
+---
+# Source: backend/templates/deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: backend
+  name: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: backend
+    spec:
+      serviceAccountName: harbor-puller
+      containers:
+      - image: "demo.goharbor.io/fastapi2025/backend:0bd40ad8"
+        name: backend
+        ports:
+          - containerPort: 5001
+        envFrom:
+          - configMapRef:
+              name: db-backend-cm
+          - secretRef:
+              name: db-backend-sec
+        resources: {}
+      imagePullSecrets:
+        - name: harbor-creds
+status: {}
+---
+# Source: backend/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: release-name-backend
+  labels:
+    helm.sh/chart: backend-0.1.0
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+  annotations:
+    traefik.ingress.kubernetes.io/response-forwarding-flushinterval: 3600s
+    traefik.ingress.kubernetes.io/rewrite-target: /
+    traefik.ingress.kubernetes.io/transport-dialtimeout: 3600s
+    traefik.ingress.kubernetes.io/transport-responsereadetimeout: 3600s
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: "backend.fastops.ip-ddns.com"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-svc
+                port:
+                  number: 80

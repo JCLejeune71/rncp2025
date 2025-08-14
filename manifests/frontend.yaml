@@ -1,0 +1,82 @@
+# Manifest modified by GitLab Runner on Tue Aug 12 10:07:08 AM CEST 2025 by branch 0bd40ad8
+# Reason for change: Remise du logo avec la couleur originale
+---
+# Source: frontend/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-svc
+  labels:
+    app: frontend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      protocol: TCP
+      name: http
+      targetPort: 80
+#      nodePort: 
+  selector:
+    app: frontend
+---
+# Source: frontend/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: frontend
+  name: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: frontend
+    spec:
+      serviceAccountName: harbor-puller
+      containers:
+      - image: "demo.goharbor.io/fastapi2025/frontend:0bd40ad8"
+        name: frontend
+        ports:
+          - containerPort: 80
+        resources: {}
+      imagePullSecrets:
+        - name: harbor-creds
+status: {}
+---
+# Source: frontend/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: release-name-frontend
+  labels:
+    helm.sh/chart: frontend-0.1.0
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+  annotations:
+    traefik.ingress.kubernetes.io/response-forwarding-flushinterval: 3600s
+    traefik.ingress.kubernetes.io/rewrite-target: /
+    traefik.ingress.kubernetes.io/transport-dialtimeout: 3600s
+    traefik.ingress.kubernetes.io/transport-responsereadetimeout: 3600s
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: "frontend.fastops.ip-ddns.com"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-svc
+                port:
+                  number: 80

@@ -1,0 +1,17 @@
+applications:
+  - name: fastapi
+    namespace: argocd
+    project: default
+    source:
+      repoURL: ${project_repo}
+      path: ./manifests
+      targetRevision: main
+    destination:
+      server: "https://kubernetes.default.svc"
+      namespace: dev
+    syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+      syncOptions:
+        - CreateNamespace=true

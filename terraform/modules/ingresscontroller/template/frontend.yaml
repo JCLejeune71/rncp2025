@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend-ingress
+  namespace: dev
+  annotations:
+    traefik.ingress.kubernetes.io/rewrite-target: /
+    traefik.ingress.kubernetes.io/response-forwarding-flushinterval: "3600s"
+    traefik.ingress.kubernetes.io/transport-responsereadetimeout: "3600s"
+    traefik.ingress.kubernetes.io/transport-dialtimeout: "3600s"
+  
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: frontend.fastops.ip-ddns.com
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-svc
+            port:
+              number: 80  
